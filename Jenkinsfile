@@ -48,41 +48,40 @@ pipeline {
             }
         }
         
-        stage('Configure Kubernetes Access') {
-            steps {
-                script {
-                    withCredentials([string(credentialsId: 'minikube-jenkins-token', variable: 'K8S_TOKEN')]) {
-                        sh """
-                            # Get current Minikube IP
-                            MINIKUBE_IP=\$(minikube ip)
-                            
-                            # Configure kubectl access
-                            kubectl config set-cluster minikube \
-                              --server=https://\${MINIKUBE_IP}:8443 \
-                              --insecure-skip-tls-verify=true
-                            kubectl config set-credentials jenkins \
-                              --token=${K8S_TOKEN}
-                            kubectl config set-context minikube \
-                              --cluster=minikube \
-                              --user=jenkins
-                            kubectl config use-context minikube
-                        """
-                    }
-                }
+      stage('Configure Kubernetes Access') {
+    steps {
+        script {
+            // Check and start Minikube if it's not running
+            sh '''
+                if ! minikube status | grep -q "host: Running"; then
+                    echo "Minikube is not running. Starting Minikube..."
+                    minikube start
+                else
+                    echo "Minikube is already running."
+                fi
+            '''
+            
+            withCredentials([string(credentialsId: 'minikube-jenkins-token', variable: 'K8S_TOKEN')]) {
+                sh """
+                    # Get current Minikube IP
+                    MINIKUBE_IP=\$(minikube ip)
+
+                    # Configure kubectl access
+                    kubectl config set-cluster minikube \
+                      --server=https://\${MINIKUBE_IP}:8443 \
+                      --insecure-skip-tls-verify=true
+                    kubectl config set-credentials jenkins \
+                      --token=${K8S_TOKEN}
+                    kubectl config set-context minikube \
+                      --cluster=minikube \
+                      --user=jenkins
+                    kubectl config use-context minikube
+                """
             }
         }
-        
-        stage('Deploy to Minikube') {
-            steps {
-                script {
-                    sh """
-                        kubectl apply -f deployment.yaml --validate=false
-                        kubectl apply -f service.yaml --validate=false
-                    """
-                }
-            }
-        }
-    
+    }
+}
+
         stage('Verify Deployment') {
             steps {
                 script {
