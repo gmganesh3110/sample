@@ -48,39 +48,50 @@ pipeline {
             }
         }
         
-      stage('Configure Kubernetes Access') {
-    steps {
-        script {
-            // Check and start Minikube if it's not running
-            sh '''
-                if ! minikube status | grep -q "host: Running"; then
-                    echo "Minikube is not running. Starting Minikube..."
-                    minikube start
-                else
-                    echo "Minikube is already running."
-                fi
-            '''
-            
-            withCredentials([string(credentialsId: 'minikube-jenkins-token', variable: 'K8S_TOKEN')]) {
-                sh """
-                    # Get current Minikube IP
-                    MINIKUBE_IP=\$(minikube ip)
+        stage('Configure Kubernetes Access') {
+            steps {
+                script {
+                    sh '''
+                        # Start Minikube if not running
+                        if ! minikube status | grep -q "host: Running"; then
+                            echo "Minikube is not running. Starting..."
+                            minikube start
+                        else
+                            echo "Minikube is already running."
+                        fi
 
-                    # Configure kubectl access
-                    kubectl config set-cluster minikube \
-                      --server=https://\${MINIKUBE_IP}:8443 \
-                      --insecure-skip-tls-verify=true
-                    kubectl config set-credentials jenkins \
-                      --token=${K8S_TOKEN}
-                    kubectl config set-context minikube \
-                      --cluster=minikube \
-                      --user=jenkins
-                    kubectl config use-context minikube
-                """
+                        # Wait until API server is responsive
+                        echo "Waiting for Minikube API server to become reachable..."
+                        for i in {1..10}; do
+                            MINIKUBE_IP=$(minikube ip)
+                            if curl -k --silent https://$MINIKUBE_IP:8443/version > /dev/null; then
+                                echo "Minikube API is reachable."
+                                break
+                            fi
+                            echo "Minikube API not ready yet. Retrying in 5s..."
+                            sleep 5
+                        done
+                    '''
+
+                    withCredentials([string(credentialsId: 'minikube-jenkins-token', variable: 'K8S_TOKEN')]) {
+                        sh """
+                            MINIKUBE_IP=\$(minikube ip)
+
+                            kubectl config set-cluster minikube \
+                            --server=https://\${MINIKUBE_IP}:8443 \
+                            --insecure-skip-tls-verify=true
+                            kubectl config set-credentials jenkins \
+                            --token=${K8S_TOKEN}
+                            kubectl config set-context minikube \
+                            --cluster=minikube \
+                            --user=jenkins
+                            kubectl config use-context minikube
+                        """
+                    }
+                }
             }
         }
-    }
-}
+
 
         stage('Verify Deployment') {
             steps {
