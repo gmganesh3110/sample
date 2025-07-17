@@ -6,7 +6,7 @@ pipeline {
         IMAGE_NAME = 'sample'
         IMAGE_TAG = '1.0'
         DOCKER_HUB_REPO = 'gmganesh'
-        KUBECONFIG = '/home/jenkins/.kube/config' // Path to your kubeconfig for Minikube
+        KUBECONFIG = "${WORKSPACE}/.kube/config"  // Use workspace path instead of hardcoded /home/jenkins
     }
     
     stages {
@@ -51,15 +51,15 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 script {
-                    // Update the deployment with the new image
-                    // sh "kubectl set image deployment/sample-deployment sample=${DOCKER_HUB_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --record"
-                    
-                    // Alternatively, if you want to apply the entire deployment YAML:
-                    sh "kubectl apply -f deployment.yaml --validate=false"
-                    sh "kubectl apply -f service.yaml --validate=false"
-
-                    // Verify deployment
-                    sh "kubectl rollout status deployment/sample-deployment"
+                    withCredentials([file(credentialsId: 'minikube-jenkins-token', variable: 'KUBECONFIG_FILE')]) {
+                        sh """
+                            mkdir -p ${WORKSPACE}/.kube
+                            cp ${KUBECONFIG_FILE} ${KUBECONFIG}
+                            kubectl apply -f deployment.yaml --validate=false
+                            kubectl apply -f service.yaml --validate=false
+                            kubectl rollout status deployment/sample-deployment
+                        """
+                    }
                 }
             }
         }
@@ -73,6 +73,9 @@ pipeline {
                 
                 // Optional: Clean up built images to save space
                 sh "docker rmi ${IMAGE_NAME} ${DOCKER_HUB_REPO}/${IMAGE_NAME}:${IMAGE_TAG} || true"
+                
+                // Clean up kubeconfig
+                sh "rm -rf ${WORKSPACE}/.kube || true"
             }
         }
         success {
