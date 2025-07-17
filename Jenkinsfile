@@ -51,15 +51,29 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 script {
-                    withCredentials([file(credentialsId: 'minikube-jenkins-token', variable: 'KUBECONFIG_FILE')]) {
+                    withCredentials([string(credentialsId: 'minikube-token', variable: 'K8S_TOKEN')]) {
                         sh """
-                            mkdir -p ${WORKSPACE}/.kube
-                            cp ${KUBECONFIG_FILE} ${KUBECONFIG}
-                            kubectl apply -f deployment.yaml --validate=false
-                            kubectl apply -f service.yaml --validate=false
-                            kubectl rollout status deployment/sample-deployment
+                            kubectl config set-cluster minikube \
+                            --server=https://$(minikube ip):8443 \
+                            --insecure-skip-tls-verify=true
+                            kubectl config set-credentials jenkins \
+                            --token=${K8S_TOKEN}
+                            kubectl config set-context minikube \
+                            --cluster=minikube \
+                            --user=jenkins
+                            kubectl config use-context minikube
+                            kubectl apply -f deployment.yaml
+                            kubectl apply -f service.yaml
                         """
                     }
+                }
+            }
+        }
+    
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    sh "kubectl rollout status deployment/sample-deployment"
                 }
             }
         }
