@@ -51,7 +51,7 @@ pipeline {
         stage('Configure Kubernetes Access') {
             steps {
                 script {
-                    withCredentials([string(credentialsId: 'minikube-token', variable: 'K8S_TOKEN')]) {
+                    withCredentials([string(credentialsId: 'minikube-jenkins-token', variable: 'K8S_TOKEN')]) {
                         sh """
                             # Get current Minikube IP
                             MINIKUBE_IP=\$(minikube ip)
