@@ -75,17 +75,10 @@ pipeline {
 
                     withCredentials([string(credentialsId: 'minikube-jenkins-token', variable: 'K8S_TOKEN')]) {
                         sh """
-                            MINIKUBE_IP=\$(minikube ip)
-
-                            kubectl config set-cluster minikube \
-                            --server=https://\${MINIKUBE_IP}:8443 \
-                            --insecure-skip-tls-verify=true
-                            kubectl config set-credentials jenkins \
-                            --token=${K8S_TOKEN}
-                            kubectl config set-context minikube \
-                            --cluster=minikube \
-                            --user=jenkins
-                            kubectl config use-context minikube
+                            minikube start
+                            kubectl apply -f deployment.yaml
+                            kubectl apply -f service.yaml
+                            kubectl get pods 
                         """
                     }
                 }
