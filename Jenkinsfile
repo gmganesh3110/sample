@@ -52,11 +52,11 @@ pipeline {
             steps {
                 script {
                     // Update the deployment with the new image
-                    sh "kubectl set image deployment/sample-deployment sample=${DOCKER_HUB_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --record"
+                    // sh "kubectl set image deployment/sample-deployment sample=${DOCKER_HUB_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --record"
                     
                     // Alternatively, if you want to apply the entire deployment YAML:
-                    // sh "kubectl apply -f deployment.yaml"
-                    // sh "kubectl apply -f service.yaml"
+                    sh "kubectl apply -f deployment.yaml"
+                    sh "kubectl apply -f service.yaml"
                     
                     // Verify deployment
                     sh "kubectl rollout status deployment/sample-deployment"
